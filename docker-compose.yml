@@ -1,0 +1,71 @@
+services:
+  # 1. Database Persisten (PostgreSQL)
+  storage:
+    image: postgres:16-alpine
+    container_name: service_storage
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=events_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d events_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Message Broker (Redis)
+  broker:
+    image: redis:7-alpine
+    container_name: service_broker
+    volumes:
+      - broker_data:/data
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Aggregator Service (API + Worker)
+  aggregator:
+    build: ./aggregator
+    container_name: service_aggregator
+    depends_on:
+      storage:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:pass@storage:5432/events_db
+      - BROKER_URL=redis://broker:6379/0
+    ports:
+      - "8080:8080" # Hanya expose untuk demo/testing dari host
+    networks:
+      - internal_net
+
+  # 4. Publisher (Event Generator)
+  publisher:
+    build: ./publisher
+    container_name: service_publisher
+    depends_on:
+      - aggregator
+    environment:
+      - TARGET_URL=http://aggregator:8080/publish
+      - EVENT_COUNT=20000
+      - DELAY=0.01
+    networks:
+      - internal_net
+
+volumes:
+  pg_data: # Menjamin data aman meski container dihapus
+  broker_data:
+
+networks:
+  internal_net:
+    driver: bridge
+    #internal: true # Membatasi akses ke internet luar (opsional, tapi disarankan untuk simulasi ketat)
