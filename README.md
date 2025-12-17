@@ -71,4 +71,4 @@ Proyek ini dilengkapi dengan **Integration Tests** (menggunakan Pytest) yang men
 ---
 
 ## 📺 Video Demo
-Link Video Demo: [Tuliskan Link YouTube Anda Di Sini]
+Link Video Demo: [[Klik](https://youtu.be/LqwvC3wFoVw)]
